@@ -10,14 +10,20 @@ const DOMAIN = "http://localhost:3000"
 
 let app = express(),
     server = app.listen(PORT, () => console.log(`listening on port ${PORT}`)),
-    io = socket(server, { origins: "*:*" }),
-    hashids = new Hashids("get stupid", 4, "ABCDEFGHIJKLMNPQRSTUVWXY3456789"),
+    io = socket(server, {
+        rememberTransport: false,
+        'reconnect': true,
+        'reconnection delay': 500,
+        'max reconnection attempts': 10,
+        'secure': true
+    }),
+    hashids = new Hashids("get stupid", 8, "0123456789ABCDEFGHIJKLMNPQRSTUVWXY"),
     activeGames = {};
 const selectInterval = 10000,
     displayInterval = 3500,
     countdownLength = 5;
 
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
     res.header(
         "Access-Control-Allow-Headers",
@@ -34,8 +40,11 @@ app.get("/categories", (_, res) => {
     });
 });
 
-io.on("connection", function(socket) {
+io.on("connection", function (socket) {
     console.log(`made connection, ID: ${socket.id}`);
+    socket.on('disconnect', function () {
+        console.log(socket.id)
+    });
     socket.on("start game", startGame);
     socket.on("create new game", (_, callback) =>
         createNewGame(socket, callback)
@@ -55,11 +64,11 @@ let emitPlayers = (gameNum) => {
     io.in(gameNum).emit(
         "players",
         Object.keys(players).length > 0 ?
-        Object.entries(players).map(([id, pl]) => {
-            pl.id = id;
-            return pl;
-        }) :
-        undefined
+            Object.entries(players).map(([id, pl]) => {
+                pl.id = id;
+                return pl;
+            }) :
+            undefined
     );
 };
 
@@ -82,39 +91,63 @@ var validateAnswer = (socketID, { answer, questionNum, gameID }, callback) => {
         correctAnswer: correctAnsIdx,
     });
     if (correctAnsIdx === +answer) {
-        activeGames[gameNum].players[socketID].score++;
+        var user = activeGames[gameNum].players?.find((i) => i.userId == 1)
+        var handleChageName = activeGames[gameNum].players?.map((obj) => {
+            if (obj?.id == user.id) {
+                return { ...obj, score: obj.score + 1 }
+            }
+        })
+        activeGames[gameNum].players = handleChageName
     }
     emitPlayers(gameNum);
 };
 
 var handleSubmitName = ({ gameID, playerName }, socket) => {
-    console.log(`${playerName} submitted name`);
     const gameNum = decode(gameID);
-    activeGames[gameNum].players[socket.id] = { name: playerName, score: 0 };
+    var user = activeGames[gameNum].players?.find((i) => i.userId == -1) || null
+    var userId = Math.floor(Math.random() * 1000);
+    if (user) {
+        var handleChageName = activeGames[gameNum].players?.map((obj) => {
+            if (obj?.id == user.id) {
+                return { ...obj, name: playerName }
+            }
+        })
+        activeGames[gameNum].players = handleChageName
+    } else {
+        const dataStatic = activeGames[gameNum].players
+        dataStatic.push({ userId: userId, name: playerName, score: 0, owner: false, socketId: socket.id, active: true });
+        activeGames[gameNum].players = dataStatic
+    }
+    console.log(`${playerName} submitted name`);
     console.log(`added entry for ${socket.id}`);
     emitPlayers(gameNum);
 };
 
 var createNewGame = (socket, callback) => {
+    const playerName = 'Owner'
     // find unused number
-    var j = 0;
+    var j = Math.floor(Math.random() * 9999999999);
     while (activeGames[j]) {
         j++;
     }
     //hash it
     const gameID = hashids.encode(j);
-    console.log(`gameID is ${gameID}`);
+    console.log(`gameId est ${gameID}`);
     callback(gameID);
     activeGames[j] = {
         canJoin: true,
-        players: {},
+        players: [],
         numJoiners: 0,
-        questions: {},
+        questions: [],
         i: 0,
         numQuestions: undefined,
     };
     socket.join(j);
-    handleJoining({ numInc: 1, gameID: gameID }, socket);
+    // handleJoining({ numInc: 1, gameID: gameID }, socket);
+    console.log(`${playerName} is the owner game`);
+    const gameNum = decode(gameID);
+    activeGames[gameNum].players.push({ userId: 1, name: playerName, score: 0, owner: true, socketId: socket.id, active: true });
+    emitPlayers(gameNum);
 };
 
 var formatGameID = (gameID) => {
@@ -132,26 +165,36 @@ var joinGame = (gameID, socket, callback) => {
         if (!activeGames[gameNumber]) {
             callback({
                 sucess: false,
-                errorMsg: "The game you requested was not found. Ensure you have the correct game code and try again.",
+                errorMsg: "Le jeu que vous avez demandé n'a pas été trouvé. Assurez-vous d'avoir le code de jeu correct et réessayez.",
             });
         } else if (activeGames[gameNumber].canJoin) {
+            var user = activeGames[gameNumber].players?.find((i) => i.userId == -1) || null
             callback({
                 sucess: true,
                 gameID: formattedGameID,
+                owner: user?.owner || false,
             });
             socket.join(gameNumber);
+            if (user) {
+                var handleChage = activeGames[gameNum].players?.map((obj) => {
+                    if (obj?.id == user.id) {
+                        return { ...obj, socketId: socket.id, active: true }
+                    }
+                })
+                activeGames[gameNumber].players = handleChage
+            }
             console.log(`the socket joined  ${gameNumber}`);
             handleJoining({ numInc: 1, gameID: formattedGameID }, socket);
         } else {
             callback({
                 sucess: false,
-                errorMsg: "You can't join a game that is already in progress.",
+                errorMsg: "Vous ne pouvez pas rejoindre un jeu qui est déjà en cours.",
             });
         }
     } catch {
         callback({
             sucess: false,
-            errorMsg: "The game you requested was not found. Ensure you have the correct game code and try again.",
+            errorMsg: "Le jeu que vous avez demandé n'a pas été trouvé. Assurez-vous d'avoir le code de jeu correct et réessayer.",
         });
     }
 };
@@ -204,9 +247,9 @@ let sendQuestion = (gameNum) => {
     activeGames[gameNum].i = currentIdx + 1;
     setTimeout(
         () =>
-        currentGame.i < currentGame.numQuestions ?
-        sendQuestion(gameNum) :
-        io.in(gameNum).emit("game over"),
+            currentGame.i < currentGame.numQuestions ?
+                sendQuestion(gameNum) :
+                io.in(gameNum).emit("game over"),
         selectInterval + displayInterval
     );
 };

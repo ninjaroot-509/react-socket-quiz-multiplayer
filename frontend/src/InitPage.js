@@ -49,13 +49,13 @@ export function InitPage({
   let handleStartGame = (e) => {
     e.preventDefault();
     // console.log(`name submitted is ${nameSubmitted}`);
-    if (!nameSubmitted) {
-      setStartError({
-        error: true,
-        msg: "Please submit a name for yourself before starting the game.",
-      });
-      return;
-    }
+    // if (!nameSubmitted) {
+    //   setStartError({
+    //     error: true,
+    //     msg: "Please submit a name for yourself before starting the game.",
+    //   });
+    //   return;
+    // }
     const nQ = +numberQuestions;
     if (isNaN(nQ)) {
       setStartError({
