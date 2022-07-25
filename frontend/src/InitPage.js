@@ -18,14 +18,17 @@ function Radio({ displayName, value, target, setTarget }) {
 export function InitPage({
   gameID,
   players,
+  messages,
   numberJoiners,
   isGameCreator,
   categories,
   submitName,
+  submitMessage,
   startGame,
   emitJoining,
 }) {
   let [name, setName] = useState(""),
+    [message, setMessage] = useState(""),
     [category, setCategory] = useState("-1"),
     [difficulty, setDifficulty] = useState("-1"),
     [numberQuestions, setNumberQuestions] = useState(10),
@@ -34,7 +37,9 @@ export function InitPage({
       msg: "",
     }),
     [nameSubmitted, setNameSubmitted] = useState(false);
-    console.log(`numJoiners is ${numberJoiners}, nameSubmitted is ${nameSubmitted}`)
+  console.log(
+    `numJoiners is ${numberJoiners}, nameSubmitted is ${nameSubmitted}`
+  );
 
   let handleSubmitName = (e) => {
     e.preventDefault();
@@ -44,6 +49,12 @@ export function InitPage({
     }
     setNameSubmitted(true);
     submitName(gameID, name);
+  };
+
+  let handleMessage = (e) => {
+    e.preventDefault();
+    submitMessage(gameID, message);
+    setMessage("");
   };
 
   let handleStartGame = (e) => {
@@ -83,6 +94,13 @@ export function InitPage({
         <span className="block uppercase tracking-wider text-xl font-mono px-3 py-1 rounded border-gray-700 border-2 bg-white shadow text-gray-800 font-hairline mx-auto w-min-content">
           {gameID}
         </span>
+        <button
+          type="submit"
+          className="block mx-auto bg-teal-700 hover:bg-teal-600 text-white uppercase shadow py-2 px-4 tracking-wide text-sm rounded mt-4"
+          onClick={handleStartGame}
+        >
+          start game
+        </button>
 
         <div className="text-gray-600 italic text-xs leading-none text-center mt-2 mb-4">
           share this code with friends who want to join the game
@@ -126,7 +144,7 @@ export function InitPage({
                       clipRule="evenodd"
                     />
                   </svg>
-                  {pl.name}
+                  {pl.name} - {pl.active ? "active" : "inactive"}
                 </li>
               );
             })}
@@ -221,13 +239,6 @@ export function InitPage({
               inputMode="numeric"
               onChange={(e) => setNumberQuestions(e.target.value)}
             ></input>
-            <button
-              type="submit"
-              className="block mx-auto bg-teal-700 hover:bg-teal-600 text-white uppercase shadow py-2 px-4 tracking-wide text-sm rounded mt-4"
-              onClick={handleStartGame}
-            >
-              start game
-            </button>
             {startError.error && (
               <div className="rounded border-red-800 border-l-4 bg-red-200 p-2 my-2 flex items-center text-red-800 text-sm leading-tight">
                 <svg
@@ -246,6 +257,61 @@ export function InitPage({
             )}
           </form>
         )}
+        <br />
+        <br />
+
+        <div className="max-w-sm bg-gray-100 mx-4 p-6 shadow-lg rounded-md">
+          <div className="message-container">
+            {messages?.map((msg) => {
+              return (
+                <div key={msg.id} className="message">
+                  <div className="message-header">
+                    <div className="message-header-name">{msg.name}</div>
+                    <div className="message-header-time">{msg.date}</div>
+                  </div>
+                  <div className="message-body">{msg.message}</div>
+                  <hr />
+                </div>
+              );
+            })}
+          </div>
+          <br />
+          <br />
+          <br />
+          <br />
+          <form className="w-full mb-4">
+            <input
+              className={"p-2 shadow rounded-l text-sm"}
+              id="message"
+              name="message"
+              placeholder="enter your message here"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+            />
+            <button
+              type="submit"
+              className="bg-purple-800 hover:bg-purple-700 text-white uppercase shadow py-2 px-4 pr-10 tracking-wide text-sm rounded-r"
+              onClick={handleMessage}
+            >
+              send
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="user-group w-6 h-6 pl-1 pb-1 absolute inline"
+              >
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+        <br />
+        <br />
+        <br />
+        <br />
       </div>
     </div>
   );

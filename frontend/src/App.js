@@ -77,6 +77,11 @@ export class App extends Component {
       console.log(`update players:  ${JSON.stringify(p)}`);
       this.setState({ players: p });
     });
+
+    this.socket.on("messages", (m) => {
+      this.setState({ messages: m });
+    });
+
     this.socket.on("joining", (n) => {
       this.setState({ numJoiners: n });
     });
@@ -152,6 +157,13 @@ export class App extends Component {
     });
   };
 
+  submitMessage = (gameID, message) => {
+    this.socket.emit("new-message", {
+      gameID: gameID,
+      message: message,
+    });
+  }
+
   render() {
     if (this.state.appState === "init") {
       return (
@@ -166,10 +178,12 @@ export class App extends Component {
         <InitPage
           gameID={this.state.gameID}
           players={this.state.players}
+          messages={this.state.messages}
           numberJoiners={this.state.numJoiners}
           isGameCreator={this.state.isGameCreator}
           categories={this.state.categories}
           submitName={this.submitName}
+          submitMessage={this.submitMessage}
           startGame={this.startGame}
           emitJoining={this.emitJoining}>
         </InitPage>
